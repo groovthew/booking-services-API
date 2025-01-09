@@ -1,6 +1,4 @@
-<?php
-
-namespace App\Controllers;
+<?php namespace App\Controllers;
 
 use App\Models\RoomModel;
 use App\Models\BookingModel;
@@ -8,39 +6,43 @@ use App\Models\PaymentModel;
 
 class BookingController extends BaseController
 {
-    public function searchRooms()
+    public function selectDates()
     {
-        $roomModel = new RoomModel();
-        $checkInDate = $this->request->getPost('check_in_date');
-        $checkOutDate = $this->request->getPost('check_out_date');
-
-        $rooms = $roomModel->findAvailableRooms($checkInDate, $checkOutDate);
-
-        return view('room', [
-            'rooms' => $rooms,
-            'check_in_date' => $checkInDate,
-            'check_out_date' => $checkOutDate,
-        ]);
+        return view('select_dates');
+        if (session()->get('num_user') == '') {
+            return redirect()->to('/login');
+            }
     }
 
     public function selectRoom()
     {
-        $roomId = $this->request->getPost('room_id');
         $checkInDate = $this->request->getPost('check_in_date');
         $checkOutDate = $this->request->getPost('check_out_date');
 
         $roomModel = new RoomModel();
-        $room = $roomModel->find($roomId);
+        $rooms = $roomModel->getAllRooms();
 
-        $duration = (new \DateTime($checkInDate))->diff(new \DateTime($checkOutDate))->days;
-        $totalAmount = $duration * $room['price_per_night'];
+        return view('select_room', [
+            'rooms' => $rooms,
+            'checkInDate' => $checkInDate,
+            'checkOutDate' => $checkOutDate
+        ]);
+    }
 
-        return view('payment', [
-            'room' => $room,
-            'check_in_date' => $checkInDate,
-            'check_out_date' => $checkOutDate,
-            'duration' => $duration,
-            'total_amount' => $totalAmount,
+    public function paymentPage()
+    {
+        $roomId = $this->request->getPost('room_id');
+        // $roomType = $this->request->getPost('room_type');
+        $checkInDate = $this->request->getPost('check_in_date');
+        $checkOutDate = $this->request->getPost('check_out_date');
+        $totalPrice = $this->request->getPost('total_price');
+
+        return view('payment_page', [
+            'roomId' => $roomId,
+            // 'roomType' => $roomType,
+            'checkInDate' => $checkInDate,
+            'checkOutDate' => $checkOutDate,
+            'totalPrice' => $totalPrice,
         ]);
     }
 
@@ -48,32 +50,60 @@ class BookingController extends BaseController
     {
         $bookingModel = new BookingModel();
         $paymentModel = new PaymentModel();
-        $roomModel = new RoomModel();
 
-        $data = $this->request->getPost();
-
-        // Simpan data pemesanan ke tabel bookings
+        // Insert booking
         $bookingData = [
-            'room_id' => $data['room_id'],
-            'check_in_date' => $data['check_in_date'],
-            'check_out_date' => $data['check_out_date'],
-            'total_price' => $data['total_amount'],
-            'status' => 'confirmed',
+            'room_id' => $this->request->getPost('room_id'),
+            // 'room_type' => $this->request->getPost('room_type'),
+            'customer_name' => $this->request->getPost('customer_name'),
+            'customer_email' => $this->request->getPost('customer_email'),
+            'check_in_date' => $this->request->getPost('check_in_date'),
+            'check_out_date' => $this->request->getPost('check_out_date'),
+            'total_price' => $this->request->getPost('total_price'),
         ];
         $bookingId = $bookingModel->insert($bookingData);
 
-        // Simpan data pembayaran ke tabel payments
+        // Insert payment
         $paymentData = [
             'booking_id' => $bookingId,
-            'payment_method' => $data['payment_method'],
-            'amount' => $data['total_amount'],
-            'status' => 'success',
+            'payment_method' => $this->request->getPost('payment_method'),
+            'amount' => $this->request->getPost('total_price'),
         ];
         $paymentModel->insert($paymentData);
 
-        // Perbarui status kamar menjadi tidak tersedia
-        $roomModel->update($data['room_id'], ['availability' => 0]);
-
         return view('payment_success');
     }
+
+    public function bookingHistory()
+    {
+        $bookingModel = new BookingModel();
+        $bookings = $bookingModel->findAll();
+
+        return view('booking_history', ['bookings' => $bookings]);
+    }
+
+    public function confirmBooking()
+    {
+        $bookingModel = new \App\Models\BookingModel();
+
+        $data = [
+            'customer_name' => $this->request->getPost('customer_name'),
+            'customer_email' => $this->request->getPost('customer_email'),
+            'check_in_date' => $this->request->getPost('check_in_date'),
+            'check_out_date' => $this->request->getPost('check_out_date'),
+            'room_id' => $this->request->getPost('room_id'),
+            'total_price' => $this->calculateTotalPrice(
+                $this->request->getPost('room_id'),
+                $this->request->getPost('check_in_date'),
+                $this->request->getPost('check_out_date')
+            ),
+            'is_order_food' => $this->request->getPost('is_order_food') ?? 0,
+            'room_food_id' => $this->request->getPost('room_food_id') ?? null,
+        ];
+
+        $bookingModel->insert($data);
+
+        return redirect()->to('/paymentPage');
+    }
+
 }

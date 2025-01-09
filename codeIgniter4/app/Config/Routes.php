@@ -6,11 +6,13 @@ use CodeIgniter\Router\RouteCollection;
  * @var RouteCollection $routes
  */
 $routes->get('/', 'Home::index');
-$routes->get('/booking', 'BookingController::index');
-$routes->post('/booking/searchRooms', 'BookingController::searchRooms');
-$routes->post('/room/selectRoom', 'RoomController::selectRoom');
-$routes->get('/payment/(:num)', 'PaymentController::index/$1');
-$routes->post('/payment/processPayment', 'PaymentController::processPayment');
-$routes->get('/payment/success', 'PaymentController::success');
+$routes->get('/BookingController/selectDates', 'BookingController::selectDates', ['filter' => 'auth']);
+$routes->post('/BookingController/selectRoom', 'BookingController::selectRoom');
+$routes->post('/BookingController/paymentPage', 'BookingController::paymentPage');
+$routes->post('/BookingController/processPayment', 'BookingController::processPayment');
+$routes->get('/BookingController/bookingHistory', 'BookingController::bookingHistory');
+$routes->get('/auth', 'AuthController::index');
+$routes->post('/auth/login', 'AuthController::login');
+
 
 
